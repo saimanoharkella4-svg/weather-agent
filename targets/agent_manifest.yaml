@@ -1,0 +1,28 @@
+agent_name: "weather-agent"
+sources:
+  - type: repo
+    path: "C:/Personal/Testing agents/Langchain/WeatherAgent"
+  - type: openapi
+    path: "http://localhost:8082/openapi.json"
+  - type: yaml_inline
+    runbooks_dir: "C:/Personal/Testing agents/Langchain/WeatherAgent/runbooks"
+    models:
+      - provider: "groq"
+        model_id: "llama3-8b-8192"
+    runtime:
+      endpoint: "http://localhost:8082/agent/invoke"
+      protocol: http
+      auth: { type: bearer, token_env: "AGENT_API_TOKEN" }
+    capabilities:
+      max_steps: 25              # Prevents infinite loops
+      context_budget_tokens: 8192 
+      tools: ["weather_api_call"]
+      destructive_tools: []
+      requires_hitl: false
+    security:
+      pii_fields: ["location"] 
+      allowed_data_regions: ["global", "us-east"]
+      data_classification: ["PUBLIC"]
+slos:
+  p95_latency_ms: 5000           # Phase 4 Observability constraint
+  max_cost_per_task_usd: 0.1     # Phase 4 Cost budget constraint
