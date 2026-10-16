@@ -1,8 +1,18 @@
+import os
+import sys
 import requests
 import json
+from dotenv import load_dotenv
 
-AGENT_URL = "http://localhost:8082/agent/invoke"
-TOKEN = "super_secret_token_123"
+load_dotenv()
+
+AGENT_URL = os.getenv("AGENT_URL", "http://localhost:8082/agent/invoke")
+TOKEN = os.getenv("AGENT_API_TOKEN")
+
+if not TOKEN:
+    print("Error: AGENT_API_TOKEN environment variable is not set.")
+    print("Please set it in your environment or provide it in a .env file.")
+    sys.exit(1)
 
 print("========================================")
 print("       WeatherAgent Chat Interface      ")

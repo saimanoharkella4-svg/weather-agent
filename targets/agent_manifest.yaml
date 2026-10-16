@@ -1,16 +1,16 @@
 agent_name: "weather-agent"
 sources:
   - type: repo
-    path: "C:/Personal/Testing agents/Langchain/WeatherAgent"
+    path: "https://github.com/saimanoharkella4-svg/weather-agent"
   - type: openapi
-    path: "http://localhost:8082/openapi.json"
+    path: "https://weather-agent-pc6l.onrender.com/openapi.json"
   - type: yaml_inline
-    runbooks_dir: "C:/Personal/Testing agents/Langchain/WeatherAgent/runbooks"
+    runbooks_dir: "./runbooks"
     models:
       - provider: "groq"
         model_id: "llama3-8b-8192"
     runtime:
-      endpoint: "http://localhost:8082/agent/invoke"
+      endpoint: "https://weather-agent-pc6l.onrender.com/agent/invoke"
       protocol: http
       auth: { type: bearer, token_env: "AGENT_API_TOKEN" }
     capabilities:

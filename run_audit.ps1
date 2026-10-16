@@ -1,6 +1,20 @@
 $OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $env:PYTHONIOENCODING = "utf-8"
-$env:AGENT_API_TOKEN = "super_secret_token_123"
+# AGENT_API_TOKEN must be set in your terminal before running this script
+if (-not $env:AGENT_API_TOKEN) {
+    if (Test-Path ".env") {
+        Get-Content ".env" | ForEach-Object {
+            if ($_ -match "^\s*AGENT_API_TOKEN\s*=\s*(.*)$") {
+                $env:AGENT_API_TOKEN = $matches[1].Trim()
+            }
+        }
+    }
+}
+
+if (-not $env:AGENT_API_TOKEN) {
+    Write-Error "AGENT_API_TOKEN is not set. Please set it in your terminal before running (e.g., `$env:AGENT_API_TOKEN='your_token')."
+    exit 1
+}
 
 Write-Host "Starting Weather Agent server on port 8082..." -ForegroundColor Cyan
 $serverJob = Start-Job {

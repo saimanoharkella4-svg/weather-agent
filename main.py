@@ -27,7 +27,13 @@ app.mount("/static", StaticFiles(directory=os.path.join(base_dir, "frontend")), 
 async def root():
     return FileResponse(os.path.join(base_dir, "frontend", "index.html"))
 
-API_TOKEN = os.getenv("AGENT_API_TOKEN", "default-dev-token")
+API_TOKEN = os.getenv("AGENT_API_TOKEN")
+if not API_TOKEN:
+    raise RuntimeError(
+        "CRITICAL ERROR: 'AGENT_API_TOKEN' environment variable is not set. "
+        "The agent refuses to start without an authentication token configured. "
+        "Please set AGENT_API_TOKEN in your environment or .env file."
+    )
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "")
 
 class AgentRequest(BaseModel):

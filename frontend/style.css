@@ -86,12 +86,37 @@ header {
     margin-bottom: 24px;
 }
 
+.header-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
 header h1 {
     font-size: 24px;
     font-weight: 600;
     background: linear-gradient(to right, #60a5fa, #a78bfa);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+.token-btn {
+    position: absolute;
+    right: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.token-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-main);
 }
 
 header p {
