@@ -1,19 +1,15 @@
 import os
 import uuid
 import time
-import asyncio
-import time
+import secrets
 import requests
-from fastapi import FastAPI, Depends, HTTPException, Request, Header
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# Dummy reference to satisfy Supply Chain scanner model attestation
-def _dummy_func(**kwargs): pass
-_dummy_func(model="llama3-8b-8192")
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -39,8 +35,6 @@ WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "")
 class AgentRequest(BaseModel):
     input: str
     session_id: Optional[str] = None
-    mock_scenario: Optional[str] = Field(None, alias="_mock_scenario")
-    seed_token: Optional[str] = Field(None, alias="_seed_token")
 
 class AgentResponse(BaseModel):
     output: str
@@ -58,20 +52,22 @@ BLOCKLIST = [
     "[tool", "search_database", "eval("
 ]
 
-def verify_token(authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
+# Declared as a bearer scheme so the OpenAPI document shows that /agent/invoke needs a login
+bearer_scheme = HTTPBearer(auto_error=False)
+
+def verify_token(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)):
+    if creds is None:
         raise HTTPException(status_code=401, detail="Missing or invalid token")
-    token = authorization.split(" ")[1]
-    if token != API_TOKEN:
+    if not secrets.compare_digest(creds.credentials, API_TOKEN):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 def get_weather(city: str) -> str:
     if not WEATHER_API_KEY:
         return "Weather API Key is not set."
     
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={WEATHER_API_KEY}&units=metric"
+    url = "https://api.openweathermap.org/data/2.5/weather"
     try:
-        response = requests.get(url)
+        response = requests.get(url, params={"q": city, "appid": WEATHER_API_KEY, "units": "metric"}, timeout=10)
         if response.status_code == 200:
             data = response.json()
             temp = data['main']['temp']
@@ -82,13 +78,16 @@ def get_weather(city: str) -> str:
         else:
             return f"Error fetching weather data: {response.status_code}"
     except Exception as e:
-        return f"Exception occurred while fetching weather: {str(e)}"
+        return "The weather service is not reachable right now. Please try again later."
 
 def process_agent_logic(input_text: str) -> dict:
     input_lower = input_text.lower()
-    # Reject non-weather queries to pass Groundedness and Fairness checks
     if not any(w in input_lower for w in ["weather", "temperature", "forecast", "hot", "cold"]):
-        return {"city": None, "output": "I don't know. I cannot answer that. If you are not certain, say so. Never guess or invent facts."}
+        # Questions about the agent itself get a real answer; everything else is declined plainly
+        if any(w in input_lower for w in ["hello", "hi ", "help", "what can you", "what do you", "who are you", "your function", "your purpose", "designed to", "assist"]):
+            return {"city": None, "output": "I am a weather assistant. I tell you the current weather and temperature for a city. "
+                                            "Ask me something like: \"What is the weather in Delhi?\""}
+        return {"city": None, "output": "I can't help with that. I only answer questions about the current weather in a city."}
 
     # Basic intent extraction for weather
     words = input_text.split()
@@ -106,7 +105,7 @@ def process_agent_logic(input_text: str) -> dict:
         return {"city": None, "output": "I'm sorry, I cannot answer that. Please specify a city to get the weather for."}
 
 @app.post("/agent/invoke", response_model=AgentResponse)
-async def invoke_agent(req: AgentRequest, request: Request, _auth=Depends(verify_token)):
+async def invoke_agent(req: AgentRequest, _auth=Depends(verify_token)):
     start_time = time.time()
     trace_id = str(uuid.uuid4())
     
@@ -137,49 +136,6 @@ async def invoke_agent(req: AgentRequest, request: Request, _auth=Depends(verify
                 metadata={"latency_ms": int((time.time() - start_time) * 1000), "prompt_tokens": 0}
             )
             
-    # Layer 4 (Simulated): Graceful Fallback for Audit Framework Mocks
-    if req.mock_scenario == "rate_limit_timeout":
-        return AgentResponse(
-            output="Service temporarily unavailable due to rate limits. Please try again later.",
-            trace_id=trace_id,
-            cost_usd=0.0,
-            finish_reason="error",
-            steps=[],
-            steps_taken=0,
-            metadata={"latency_ms": int((time.time() - start_time) * 1000), "prompt_tokens": 0, "error": "rate_limit_exceeded"}
-        )
-    elif req.mock_scenario == "timeout":
-        await asyncio.sleep(3) # simulate delay to trigger framework timeout
-        return AgentResponse(
-            output="Request timed out.",
-            trace_id=trace_id,
-            cost_usd=0.0,
-            finish_reason="error",
-            steps=[],
-            steps_taken=0,
-            metadata={"latency_ms": int((time.time() - start_time) * 1000), "prompt_tokens": 0, "error": "timeout"}
-        )
-    elif req.mock_scenario == "infinite_loop":
-        return AgentResponse(
-            output="Iteration cap reached.",
-            trace_id=trace_id,
-            cost_usd=0.0,
-            finish_reason="max_steps_reached",
-            steps=[],
-            steps_taken=25,
-            metadata={"latency_ms": int((time.time() - start_time) * 1000), "prompt_tokens": 0, "error": "iteration_cap"}
-        )
-    elif req.mock_scenario in ["injection_blocked", "injection_success", "pii_leak", "secret_leak"]:
-        return AgentResponse(
-            output="I cannot fulfill this request due to safety policies.",
-            trace_id=trace_id,
-            cost_usd=0.0,
-            finish_reason="policy_refusal",
-            steps=[],
-            steps_taken=0,
-            metadata={"latency_ms": int((time.time() - start_time) * 1000), "prompt_tokens": 0}
-        )
-
     result = process_agent_logic(req.input)
     latency_ms = int((time.time() - start_time) * 1000)
     
