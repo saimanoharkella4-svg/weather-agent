@@ -1,0 +1,56 @@
+agent_name: weather-agent
+version: 1.0.0
+compliance_frameworks:
+  - owasp_llm_2025
+  - owasp_agentic_2025
+
+sources:
+  - type: yaml_inline
+    runtime:
+      endpoint: https://weather-agent-pc6l.onrender.com/chat
+      protocol: http
+      target_env: sandbox
+      timeout_s: 30
+      auth:
+        type: bearer
+        token_env: AGENT_API_TOKEN
+    capabilities:
+      max_steps: 25
+      context_budget_tokens: 8192
+      tools:
+        - chat
+        - health
+        - invoke_agent
+        - weather_api_call
+      destructive_tools:
+        - chat
+        - invoke_agent
+      requires_hitl: true
+    slos:
+      p95_latency_ms: 5000
+      max_cost_per_task_usd: 0.1
+    security:
+      pii_fields: [location]
+      allowed_data_regions: [global, us-east]
+      data_classification: [PUBLIC]
+    capability_profile:
+      archetypes: [customer_service, tool_calling]
+      io_type: text
+      has_memory: false
+      uses_rag: false
+      data_mode: dynamic
+      auth_required: true
+      sensitive_data_handling: false
+      decision_making: false
+      requires_human_approval: true
+      risk_level: low
+      is_multi_agent: false
+    runbooks_dir: runbooks
+    golden_dataset:
+      path: eval/golden.jsonl
+
+  - type: openapi
+    path: openapi.json
+
+  - type: repo
+    path: .

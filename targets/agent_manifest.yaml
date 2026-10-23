@@ -1,28 +1,38 @@
 agent_name: "weather-agent"
+version: "1.0.0"
+compliance_frameworks:
+  - owasp_llm_2025
+  - owasp_agentic_2025
+
 sources:
   - type: repo
     path: "https://github.com/saimanoharkella4-svg/weather-agent"
   - type: openapi
-    path: "https://weather-agent-pc6l.onrender.com/openapi.json"
+    path: "./openapi.json"
   - type: yaml_inline
     runbooks_dir: "./runbooks"
-    models:
-      - provider: "groq"
-        model_id: "llama3-8b-8192"
+    golden_dataset:
+      path: "eval/golden.jsonl"
     runtime:
-      endpoint: "https://weather-agent-pc6l.onrender.com/agent/invoke"
+      endpoint: "http://localhost:8082/chat"
       protocol: http
       auth: { type: bearer, token_env: "AGENT_API_TOKEN" }
     capabilities:
-      max_steps: 25              # Prevents infinite loops
-      context_budget_tokens: 8192 
-      tools: ["weather_api_call"]
-      destructive_tools: []
-      requires_hitl: false
+      max_steps: 25
+      context_budget_tokens: 8192
+      tools:
+        - chat
+        - health
+        - invoke_agent
+        - weather_api_call
+      destructive_tools:
+        - chat
+        - invoke_agent
+      requires_hitl: true
     security:
-      pii_fields: ["location"] 
+      pii_fields: ["location"]
       allowed_data_regions: ["global", "us-east"]
       data_classification: ["PUBLIC"]
 slos:
-  p95_latency_ms: 5000           # Phase 4 Observability constraint
-  max_cost_per_task_usd: 0.1     # Phase 4 Cost budget constraint
+  p95_latency_ms: 5000
+  max_cost_per_task_usd: 0.1
