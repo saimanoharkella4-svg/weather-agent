@@ -39,7 +39,7 @@ sources:
       has_memory: false
       uses_rag: false
       data_mode: dynamic
-      auth_required: true
+      auth_required: false
       sensitive_data_handling: false
       decision_making: false
       requires_human_approval: true

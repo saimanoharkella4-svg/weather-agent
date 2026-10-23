@@ -4,30 +4,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('send-btn');
     const tokenBtn = document.getElementById('token-btn');
 
-    function getApiToken() {
-        let token = sessionStorage.getItem('agent_api_token');
-        if (!token) {
-            token = prompt('Please enter your Agent API Token:');
-            if (token) {
-                token = token.trim();
-                sessionStorage.setItem('agent_api_token', token);
-            }
-        }
-        return token;
-    }
-
+    // Optional token handling: user can set one if desired, but it is not mandatory
     if (tokenBtn) {
         tokenBtn.addEventListener('click', () => {
             const current = sessionStorage.getItem('agent_api_token') || '';
-            const updated = prompt('Enter Agent API Token:', current);
+            const updated = prompt('Optional Agent API Token (press Cancel to skip):', current);
             if (updated !== null) {
                 const trimmed = updated.trim();
                 if (trimmed) {
                     sessionStorage.setItem('agent_api_token', trimmed);
-                    appendMessage('API Token updated in session.', 'system');
+                    appendMessage('API Token saved in session.', 'system');
                 } else {
                     sessionStorage.removeItem('agent_api_token');
-                    appendMessage('API Token cleared from session.', 'system');
+                    appendMessage('API Token cleared. Direct access active.', 'system');
                 }
             }
         });
@@ -55,23 +44,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = userInput.value.trim();
         if (!text) return;
 
-        const token = getApiToken();
-        if (!token) {
-            appendMessage('Authentication required: Please set your Agent API Token to chat.', 'system');
-            return;
-        }
-
         appendMessage(text, 'user');
         userInput.value = '';
         const loadingDiv = appendLoading();
 
+        // Optional token if configured, otherwise direct access
+        const token = sessionStorage.getItem('agent_api_token');
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         try {
-            const response = await fetch('/agent/invoke', {
+            const response = await fetch('/chat', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: headers,
                 body: JSON.stringify({ input: text })
             });
 
